@@ -1,0 +1,75 @@
+name: AWS Secrets Manager Integration
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment (dev, test, prod)'
+        required: true
+        default: 'dev'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        role-to-assume: arn:aws:iam::577638356286:role/GitHubActionsSecretsRole
+        aws-region: us-east-1
+
+    - name: Fetch Build Process Secrets
+      id: fetch-build-secrets
+      uses: aws-actions/aws-secretsmanager-get-secrets@v2
+      with:
+        secret-ids: arn:aws:secretsmanager:us-east-1:577638356286:secret:mule/BuildArtifacts-mXIKFL 
+        parse-json-secrets: true           
+
+    - name: Print the fetched secrets
+      run: |
+        echo "Using Build Process Secrets"
+        echo "NEXUS_PASS: ${{ env.MULE_BUILDARTIFACTS_NEXUS_PASS }}"
+        echo "SNAPSHOT_PASS: ${{ env.MULE_BUILDARTIFACTS_SNAPSHOT_PASS }}"
+        echo "EXCHANGE_PASSWORD: ${{ env.MULE_BUILDARTIFACTS_EXCHANGE_PASSWORD }}"
+   
+    - name: Fetch Deployment Process Secrets
+      id: fetch-deploy-secrets
+      uses: aws-actions/aws-secretsmanager-get-secrets@v2
+      with:
+        secret-ids: arn:aws:secretsmanager:us-east-1:577638356286:secret:${{ inputs.environment }}/mule/creds
+        parse-json-secrets: true
+
+    - name: Print Deployment Process Secrets
+      run: |
+        if [ "${{ github.event.inputs.environment }}" == "dev" ]; then
+          echo "CONNECTEDAPP_CLIENTID=${{ env.DEV_MULE_CREDS_CONNECTEDAPP_CLIENTID }}"
+          echo "CONNECTEDAPP_CLIENT_SECRET=${{ env.DEV_MULE_CREDS_CONNECTEDAPP_CLIENT_SECRET }}"
+          echo "ANYPOINT_PLATFORM_CLIENT_ID=${{ env.DEV_MULE_CREDS_ANYPOINT_PLATFORM_CLIENT_ID }}"
+          echo "ANYPOINT_PLATFORM_CLIENT_SECRET=${{ env.DEV_MULE_CREDS_ANYPOINT_PLATFORM_CLIENT_SECRET }}"
+          echo "CDC_LOGGING_SERVICE_TOKEN=${{ env.DEV_MULE_CREDS_CDC_LOGGING_SERVICE_TOKEN }}"
+          echo "CONFIGSERVER_PASSWORD=${{ env.DEV_MULE_CREDS_CONFIGSERVER_PASSWORD }}"
+          echo "LOGGING_SERVICE_TOKEN=${{ env.DEV_MULE_CREDS_LOGGING_SERVICE_TOKEN }}"  
+        elif [ "${{ github.event.inputs.environment }}" == "test" ]; then
+          echo "CONNECTEDAPP_CLIENTID=${{ env.TEST_MULE_CREDS_CONNECTEDAPP_CLIENTID }}"
+          echo "CONNECTEDAPP_CLIENT_SECRET=${{ env.TEST_MULE_CREDS_CONNECTEDAPP_CLIENT_SECRET }}"
+          echo "ANYPOINT_PLATFORM_CLIENT_ID=${{ env.TEST_MULE_CREDS_ANYPOINT_PLATFORM_CLIENT_ID }}"
+          echo "ANYPOINT_PLATFORM_CLIENT_SECRET=${{ env.TEST_MULE_CREDS_ANYPOINT_PLATFORM_CLIENT_SECRET }}"
+          echo "CDC_LOGGING_SERVICE_TOKEN=${{ env.TEST_MULE_CREDS_CDC_LOGGING_SERVICE_TOKEN }}"
+          echo "CONFIGSERVER_PASSWORD=${{ env.TEST_MULE_CREDS_CONFIGSERVER_PASSWORD }}"
+          echo "LOGGING_SERVICE_TOKEN=${{ env.TEST_MULE_CREDS_LOGGING_SERVICE_TOKEN }}" 
+        elif [ "${{ github.event.inputs.environment }}" == "load" ]; then
+          echo "CONNECTEDAPP_CLIENTID=${{ env.LOAD_MULE_CREDS_CONNECTEDAPP_CLIENTID }}"
+          echo "CONNECTEDAPP_CLIENT_SECRET=${{ env.LOAD_MULE_CREDS_CONNECTEDAPP_CLIENT_SECRET }}"
+          echo "ANYPOINT_PLATFORM_CLIENT_ID=${{ env.LOAD_MULE_CREDS_ANYPOINT_PLATFORM_CLIENT_ID }}"
+          echo "ANYPOINT_PLATFORM_CLIENT_SECRET=${{ env.DLOAD_MULE_CREDS_ANYPOINT_PLATFORM_CLIENT_SECRET }}"
+          echo "CDC_LOGGING_SERVICE_TOKEN=${{ env.LOAD_MULE_CREDS_CDC_LOGGING_SERVICE_TOKEN }}"
+          echo "CONFIGSERVER_PASSWORD=${{ env.LOAD_MULE_CREDS_CONFIGSERVER_PASSWORD }}"
+          echo "LOGGING_SERVICE_TOKEN=${{ env.LOAD_MULE_CREDS_LOGGING_SERVICE_TOKEN }}" 
+        fi
